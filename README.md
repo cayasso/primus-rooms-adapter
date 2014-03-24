@@ -18,7 +18,7 @@ Use this adapter as an abstract class for creating your own custom 'primus-rooms
 
 ```javascript
 
-var utils = require('utils');
+var util = require('util');
 var Adapter = require('primus-rooms-adapter');
 
 function MyAdapter() {
