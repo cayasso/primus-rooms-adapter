@@ -24,7 +24,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "eventemitter3": "^0.1.1"
+    "eventemitter3": "0.1.x"
   },
   "devDependencies": {
     "mocha": "*",
