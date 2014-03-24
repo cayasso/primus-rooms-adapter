@@ -18,7 +18,9 @@
     "rooms",
     "store",
     "memory",
-    "broadcast"
+    "engine",
+    "broadcast",
+    "in-memory"
   ],
   "license": "MIT",
   "dependencies": {
