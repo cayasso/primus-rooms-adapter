@@ -1,7 +1,7 @@
 # primus-rooms-adapter
 
-[![Build Status](https://travis-ci.org/cayasso/primus-rooms-adapter.png?branch=master)](https://travis-ci.org/cayasso/primus-rooms-adapter)
-[![NPM version](https://badge.fury.io/js/primus-rooms-adapter.png)](http://badge.fury.io/js/primus-rooms-adapter)
+[![Build Status](https://travis-ci.org/cayasso/primus-rooms-adapter.svg?branch=master)](https://travis-ci.org/cayasso/primus-rooms-adapter)
+[![NPM version](https://badge.fury.io/js/primus-rooms-adapter.svg)](http://badge.fury.io/js/primus-rooms-adapter)
 
 In-memory default adapter for `primus-rooms`.
 
