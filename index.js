@@ -5,6 +5,7 @@
  */
 
 var isArray = Array.isArray
+  , extend = require('extendable')
   , Emitter = require('eventemitter3');
 
 /**
@@ -20,9 +21,12 @@ module.exports = Adapter;
  * @api public
  */
 
-function Adapter(){
+function Adapter(options) {
+  options = options || {};
+  this.wildcard = 'wildcard' in options ? options.wildcard : true;
   this.rooms = {};
   this.sids = {};
+  this.keys = [];
 }
 
 /**
@@ -42,10 +46,19 @@ Adapter.prototype.__proto__ = Emitter.prototype;
 
 Adapter.prototype.add = 
 Adapter.prototype.set = function set(id, room, fn) {
+
+  //room = regex(room);
+
   this.sids[id] = this.sids[id] || {};
   this.sids[id][room] = true;
   this.rooms[room] = this.rooms[room] || {};
   this.rooms[room][id] = true;
+  this.keys = this.keys || [];
+  
+  if (this.wildcard && room && !~this.keys.indexOf(room)) {
+    this.keys.push(room);  
+  }
+
   if (fn) process.nextTick(fn.bind(null, null));
 };
 
@@ -81,7 +94,8 @@ Adapter.prototype.del = function del(id, room, fn) {
   var hasId
     , hasRoom
     , ids = this.sids
-    , rooms = this.rooms;
+    , rooms = this.rooms
+    , keys = this.keys;
 
   ids[id] = ids[id] || {};
   
@@ -97,8 +111,13 @@ Adapter.prototype.del = function del(id, room, fn) {
   function del(room) {    
     delete ids[id][room];
     delete rooms[room][id];
+    
+    var i = keys.indexOf(room);
+    if (~i) keys.splice(i, 1);
+
     for (hasId in rooms[room]);
     for (hasRoom in ids[id]);
+
     if (!hasId) delete rooms[room];
     if (!hasRoom) delete ids[id];
   }
@@ -120,33 +139,57 @@ Adapter.prototype.del = function del(id, room, fn) {
 
 Adapter.prototype.broadcast = function broadcast(data, opts, clients) {
   opts = opts || {};
+
   var socket
+    , sent = {}
+    , keys = this.keys
+    , keysLen = keys.length
     , rooms = opts.rooms || []
     , except = opts.except || []
     , method = opts.method || 'write'
-    , length = rooms.length
-    , ids = {};
-  
-  if (length) {
-    for (var i = 0; i < length; i++) {
-      var room = this.rooms[rooms[i]];
-      if (!room) continue;
-      for (var id in room) {
-        if (ids[id] || ~except.indexOf(id)) continue;
-        socket = clients[id];
-        if (socket) {
-          socket[method].apply(socket, data);
-          ids[id] = true;
+    , roomsLen = rooms.length;
+    
+  if (!roomsLen) return send(this.sids);
+
+  for (var i = 0, ids, room; i < roomsLen; ++i) {
+    room = rooms[i];
+    if (ids = this.rooms[room]) {
+      send(ids);
+    }
+
+    if (this.wildcard) {
+      for (var j = 0, key; j < keysLen; ++j) {
+        key = keys[j];
+        ids = this.rooms[key]
+        if (ids && regex(key).test(room)) {
+          send(ids);
         }
       }
     }
-  } else {
-    for (var id in this.sids) {
-      if (~except.indexOf(id)) continue;
-      socket = clients[id];
-      if (socket) socket[method].apply(socket, data);
+  }
+
+  function send(ids) {
+    for (var id in ids) {
+      if (sent[id] || ~except.indexOf(id)) continue;
+      if (socket = clients[id]) {
+        socket[method].apply(socket, data);
+        sent[id] = true;
+      }
     }
   }
+};
+
+/**
+ * Compare room keys with wildcard.
+ *
+ * @param {String} pattern
+ * @param {RegEx}
+ * @api private
+ */
+
+function regex(pattern) {
+  pattern = pattern.replace(/[\*]/g, '(.*?)');
+  return new RegExp('^' + pattern + '$');
 };
 
 /**
@@ -228,3 +271,6 @@ Adapter.prototype.clear = function empty(fn) {
   this.sids = {};
   if (fn) process.nextTick(fn.bind(null, null));
 };
+
+// Make adapter extendable
+Adapter.extend = extend;
