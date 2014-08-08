@@ -28,7 +28,7 @@ function MyAdapter() {
 util.inherits(MyAdapter, Adapter);
 
 Adapter.prototype.broadcast = function broadcast(data, opts, clients) {
-  // Do my custom brodcast here, it could be sending to a database
+  // Do my custom broadcast here, it could be sending to a database
 };
 
 ```
@@ -66,7 +66,7 @@ Get rooms socket is subscribed to.
 
 Removes a socket from a room or from all rooms if a room is not passed.
 
-### adapter.brodcast(data, opts, clients)
+### adapter.broadcast(data, opts, clients)
 
 Broadcasts a packet.
 
