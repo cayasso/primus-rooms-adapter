@@ -28,7 +28,8 @@
     "extendable": "0.0.6"
   },
   "devDependencies": {
+    "expect.js": "*",
     "mocha": "*",
-    "expect.js": "*"
+    "pre-commit": "0.0.9"
   }
 }
