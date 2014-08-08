@@ -15,6 +15,7 @@ describe('primus-rooms-adapter', function () {
     expect(adapter.empty).to.be.a('function');
     expect(adapter.isEmpty).to.be.a('function');
     expect(adapter.clear).to.be.a('function');
+    expect(adapter.wildcard).to.be.an('object');
   });
 
 });
