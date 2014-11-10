@@ -24,8 +24,8 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "eventemitter3": "0.1.2",
-    "extendable": "0.0.6"
+    "eventemitter3": "0.1.x",
+    "extendible": "0.1.x"
   },
   "devDependencies": {
     "expect.js": "*",
