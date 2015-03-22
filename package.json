@@ -30,6 +30,6 @@
   "devDependencies": {
     "expect.js": "*",
     "mocha": "*",
-    "pre-commit": "0.0.9"
+    "pre-commit": "^1.0.6"
   }
 }
