@@ -1,6 +1,6 @@
 {
   "name": "primus-rooms-adapter",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "In-memory default adapter for primus-rooms-adapter, use as abstract class",
   "author": "Jonathan Brumley <cayasso@gmail.com>",
   "homepage": "https://github.com/cayasso/primus-rooms-adapter",
