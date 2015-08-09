@@ -24,12 +24,12 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "eventemitter3": "0.1.x",
+    "eventemitter3": "1.1.x",
     "extendible": "0.1.x"
   },
   "devDependencies": {
     "expect.js": "*",
     "mocha": "*",
-    "pre-commit": "^1.0.6"
+    "pre-commit": "^1.1.1"
   }
 }
