@@ -2,3 +2,4 @@ node_modules
 benchmark
 .DS_Store
 example.js
+.log
