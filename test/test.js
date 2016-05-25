@@ -16,4 +16,13 @@ describe('primus-rooms-adapter', function () {
     expect(adapter.clear).to.be.a('function');
     expect(adapter.wildcard).to.be.an('object');
   });
+
+  describe('Adapter#del', function () {
+    it('should not leak memory', function () {
+      var adapter = new Adapter();
+      adapter.del('foo');
+      expect(adapter.rooms).to.eql({});
+      expect(adapter.sids).to.eql({});
+    });
+  });
 });
