@@ -24,7 +24,6 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "eventemitter3": "1.2.x",
     "extendible": "0.1.x"
   },
   "devDependencies": {
