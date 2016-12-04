@@ -60,7 +60,7 @@ Adds a socket to a room.
 
 ### adapter.get(id, fn)
 
-Get rooms socket is subscribed to.
+Get rooms socket is subscribed to or get all rooms in the server if an id is not passed.
 
 ### adapter.del(id, room, fn)
 
