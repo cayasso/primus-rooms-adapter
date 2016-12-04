@@ -54,7 +54,7 @@ var primus = new Primus(url, {
 
 ## API (Abstract public methods).
 
-### adapter.set(id, room, fn)
+### adapter.add(id, room, fn)
 
 Adds a socket to a room.
 
