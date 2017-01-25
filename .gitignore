@@ -3,3 +3,4 @@ benchmark
 .DS_Store
 example.js
 .log
+lib/
