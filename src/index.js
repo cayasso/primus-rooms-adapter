@@ -1,14 +1,12 @@
 'use strict'
 
-//import AdapterError = require('./error')
 import createWildcard from './wild'
 
 const isArray = Array.isArray
 const keys = Object.keys
 
 export default options => {
-  const { wildcard = true } = options
-  const wild = createWildcard({ enabled: wildcard })
+  const wild = createWildcard({ enabled: options.wildcard })
 
   let rooms = {}
   let sids = {}
@@ -24,7 +22,6 @@ export default options => {
   function get(id, fn = noop) {
     let rms = keys(id ? sids[id] || {} : rooms)
     setImmediate(fn, null, rms)
-    return rms
   }
 
   /**
@@ -58,7 +55,8 @@ export default options => {
     let prune = pruner(id)
     if (room) {
       if (wildcard && ~room.indexOf('*')) {
-        wild.find(room, get(id), prune)
+        let rms = keys(id ? sids[id] || {} : rooms)
+        wild.find(room, rms, prune)
       } else if (sids[id] && sids[id][room]) {
         prune(room)
       }
@@ -132,13 +130,35 @@ export default options => {
    */
 
   function broadcast(data, options = {}, clients) {
-    let send = sender(clients, data, options)
     let rms = options.rooms || []
-    if (!rms.length) return send(sids)
+    if (!rms.length) {
+      return send(sids, clients, data, options)
+    }
     for (const room of rms) {
       let ids = rooms[room]
-      if (ids) send(ids)
-      wild.match(room, key => send(rooms[key]))
+      if (ids) send(ids, clients, data, options)
+      wild.match(room, key =>
+        send(rooms[key], clients, data, options)
+    }
+  }
+
+  /**
+   * Create sender.
+   *
+   * @param {Array} clients
+   * @param {Mixed} data
+   * @param {Object} options
+   * @api private
+   */
+
+  function send(ids, clients, data, options) {
+    const { except = [], method = 'writer', transformer } = options
+    let sent = {}
+    for (let id in ids) {
+      const socket = clients[id]
+      if (sent[id] || ~except.indexOf(id) || !socket) continue
+      transform(socket, data, method, transformer)
+      sent[id] = true
     }
   }
 
@@ -153,11 +173,11 @@ export default options => {
    */
 
   function transform(socket, data, method, transformer) {
-    let packet = { data: data }
-
-    if (!transformer || 'function' !== typeof transformer) {
-      return send()
+    if ('function' !== typeof transformer) {
+      return socket[method].apply(socket, data)
     }
+
+    let packet = {}
 
     try {
       packet.data = JSON.parse(JSON.stringify(data))
@@ -167,39 +187,13 @@ export default options => {
 
     if (1 === transformer.length) {
       if (false === transformer.call(socket, packet)) return
-      return send()
+      return socket[method].apply(socket, packet.data)
     }
 
     transformer.call(socket, packet, (err, arg) => {
       if (err) socket.emit('error', err)
-      else if (false !== arg) send()
+      else if (false !== arg) socket[method].apply(socket, packet.data)
     })
-
-    function send() {
-      socket[method].apply(socket, packet.data)
-    }
-  }
-
-  /**
-   * Create sender.
-   *
-   * @param {Array} clients
-   * @param {Mixed} data
-   * @param {Object} options
-   * @api private
-   */
-
-  function sender(clients, data, { except = [], method = 'writer', transformer }) {
-    return ids => {
-      if (!ids) return
-      let sent = {}
-      for (let id in ids) {
-        const socket = clients[id]
-        if (sent[id] || ~except.indexOf(id) || !socket) continue
-        transform(socket, data, method, transformer)
-        sent[id] = true
-      }
-    }
   }
 
   /**
