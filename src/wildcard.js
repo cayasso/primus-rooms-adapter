@@ -1,9 +1,8 @@
 'use strict'
 
-export default (options = {}) => {
+module.exports = exports = (options = {}) => {
   const { enabled = true } = options
-
-  let keys = []
+  const keys = []
 
   /**
    * Match wildcard keys.
@@ -15,9 +14,9 @@ export default (options = {}) => {
 
   function match(room, fn) {
     if (!enabled) return
-    for (const key of keys) {
+    keys.forEach(key => {
       if (regex(key).test(room)) fn(key)
-    }
+    })
   }
 
   /**
@@ -36,9 +35,9 @@ export default (options = {}) => {
     }
     if (!enabled) return fn(re)
     list = list || keys
-    for (const key of list) {
+    list.forEach(key => {
       if (regex(re).test(key)) fn(key)
-    }
+    })
   }
 
   /**
@@ -50,10 +49,10 @@ export default (options = {}) => {
    */
 
   function add(key) {
-    if (enabled
-      && 'string' === typeof key
-      && ~key.indexOf('*')
-      && !~keys.indexOf(key)) {
+    if (enabled &&
+      'string' === typeof key &&
+      ~key.indexOf('*') &&
+      !~keys.indexOf(key)) {
       keys.push(key)
     }
   }
@@ -67,10 +66,10 @@ export default (options = {}) => {
    */
 
   function remove(key) {
-    if (enabled
-      && 'string' === typeof key
-      && ~key.indexOf('*')) {
-      var i = keys.indexOf(key)
+    if (enabled &&
+      'string' === typeof key &&
+      ~key.indexOf('*')) {
+      const i = keys.indexOf(key)
       if (~i) keys.splice(i, 1)
     }
   }
@@ -84,7 +83,7 @@ export default (options = {}) => {
    */
 
   function regex(pattern) {
-    pattern = pattern.replace(/[\*]/g, '(.*?)')
+    pattern = pattern.replace(/[*]/g, '(.*?)')
     return new RegExp(`^${pattern}$`)
   }
 

@@ -1,5 +1,6 @@
 'use strict';
 
+/*
 var Adapter = require('../')
   , expect = require('expect.js');
 
@@ -26,3 +27,4 @@ describe('primus-rooms-adapter', function () {
     });
   });
 });
+*/

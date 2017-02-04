@@ -1,27 +1,23 @@
 'use strict'
 
-import createWildcard from './wild'
+const createWildcard = require('./wildcard')
 
-const isArray = Array.isArray
-const keys = Object.keys
-
-export default options => {
-  const wild = createWildcard({ enabled: options.wildcard })
-
-  let rooms = {}
-  let sids = {}
+module.exports = exports = (options = {}) => {
+  const { wildcard } = options
+  const wild = createWildcard({ enabled: Boolean(wildcard) })
+  const toArray = o => Array.from(o) || []
+  const rooms = new Map()
+  const socks = new Map()
 
   /**
    * Get rooms socket is subscribed to.
    *
    * @param {String} id
-   * @param {Function} [fn]
    * @api public
    */
 
-  function get(id, fn = noop) {
-    let rms = keys(id ? sids[id] || {} : rooms)
-    setImmediate(fn, null, rms)
+  async function get(id) {
+    return toArray(id ? socks.get(id) : rooms.keys())
   }
 
   /**
@@ -29,17 +25,15 @@ export default options => {
    *
    * @param {String} id
    * @param {String} room
-   * @param {Function} [fn]
    * @api public
    */
 
-  function add(id, room, fn = noop) {
-    sids[id] = sids[id] || []
-    sids[id][room] = true
-    rooms[room] = rooms[room] || {}
-    rooms[room][id] = true
+  async function add(id, room) {
+    const srooms = socks.get(id) || new Set()
+    const rsocks = rooms.get(room) || new Set()
+    socks.set(id, srooms.add(room))
+    socks.set(room, rsocks.add(id))
     wild.add(room)
-    setImmediate(fn, null, null)
   }
 
   /**
@@ -47,119 +41,106 @@ export default options => {
    *
    * @param {String} id
    * @param {String} room
-   * @param {Function} [fn]
    * @api public
    */
 
-  function del(id, room, fn = noop) {
-    let prune = pruner(id)
+  async function del(id, room) {
+    const srooms = socks.get(id)
     if (room) {
       if (wildcard && ~room.indexOf('*')) {
-        let rms = keys(id ? sids[id] || {} : rooms)
-        wild.find(room, rms, prune)
-      } else if (sids[id] && sids[id][room]) {
-        prune(room)
+        const rms = id ? srooms : rooms.keys()
+        wild.find(room, toArray(rms), rm => prune(id, rm))
+      } else if (srooms && srooms.has(room)) {
+        prune(id, room)
       }
     } else {
-      for (room in sids[id]) prune(room)
+      srooms.forEach((val, rm) => prune(id, rm))
     }
-    setImmediate(fn, null, null)
   }
 
   /**
    * Get client ids connected to this room.
    *
    * @param {String} room
-   * @param {Function} fn
    * @api public
    */
 
-  function clients(room, fn = noop) {
-    room = rooms[room] || {}
-    setImmediate(fn, null, keys(room))
+  async function clients(room) {
+    return toArray(rooms.get(room))
   }
 
   /**
    * Remove all sockets from a room.
    *
    * @param {String|Array} room
-   * @param {Function} [fn]
    * @api public
    */
 
-  function empty(room, fn = noop) {
-    if (room && rooms[room]) {
-      if (!isArray(room)) clear(room)
-      else for (const rm of room) clear(rm)
-    }
-    setImmediate(fn, null, null)
+  async function empty(room) {
+    if (!rooms.get(room)) return
+    if (!Array.isArray(room)) clear(room)
+    room.forEach(clear)
   }
 
   /**
    * Reset all rooms or a particular room.
    *
    * @param {String} room
-   * @param {Function} [fn]
-   * @api public
+   * @api private
    */
 
-  function clear(room, fn = noop) {
-    if ('function' === typeof room) {
-      rooms = {}, sids = {}
-    }
-    for (const id in rooms[room]) {
-      delete sids[id][room]
-    }
-    delete rooms[room]
+  function clear(room) {
+    const rsocks = rooms.get(room)
+    rsocks.forEach(id => socks.get(id).clear())
+    rsocks.clear()
     wild.remove(room)
-    setImmediate(fn, null, null)
   }
 
   /**
    * Broadcast a packet.
    *
    * Options:
-   *  - `except` {Array} sids that should be excluded
+   *  - `except` {Array} socks that should be excluded
    *  - `rooms` {Array} list of rooms to broadcast to
    *  - `method` {String} 'write' or 'send' if primus-emitter is present
    *
    * @param {Object} data
-   * @param {Object} opts
+   * @param {Object} options
    * @param {Object} clients Connected clients
    * @api public
    */
 
-  function broadcast(data, options = {}, clients) {
-    let rms = options.rooms || []
-    if (!rms.length) {
-      return send(sids, clients, data, options)
-    }
-    for (const room of rms) {
-      let ids = rooms[room]
-      if (ids) send(ids, clients, data, options)
-      wild.match(room, key =>
-        send(rooms[key], clients, data, options)
+  async function broadcast(data, options = {}, clients) {
+    const rms = options.rooms || []
+    if (rms.length === 0) {
+      rms.forEach(room => {
+        const ids = rooms.get(room)
+        if (ids) send(ids, clients, data, options)
+        wild.match(room, key =>
+          send(rooms.get(key), clients, data, options))
+      })
+    } else {
+      send(socks.keys(), clients, data, options)
     }
   }
 
   /**
    * Create sender.
    *
-   * @param {Array} clients
+   * @param {Set} ids
+   * @param {Object} clients
    * @param {Mixed} data
    * @param {Object} options
    * @api private
    */
 
   function send(ids, clients, data, options) {
-    const { except = [], method = 'writer', transformer } = options
-    let sent = {}
-    for (let id in ids) {
+    const { except = [], method = 'write', transformer } = options
+    ids.forEach(id => {
       const socket = clients[id]
-      if (sent[id] || ~except.indexOf(id) || !socket) continue
+      if (~except.indexOf(id) || !socket) return
       transform(socket, data, method, transformer)
-      sent[id] = true
-    }
+    })
   }
 
   /**
@@ -169,7 +150,7 @@ export default options => {
    * @param {Mixed} data
    * @param {String} method
    * @param {Function} transformer
-   * @api public
+   * @api private
    */
 
   function transform(socket, data, method, transformer) {
@@ -177,12 +158,12 @@ export default options => {
       return socket[method].apply(socket, data)
     }
 
-    let packet = {}
+    const packet = {}
 
     try {
       packet.data = JSON.parse(JSON.stringify(data))
-    } catch(e) {
-      return socket.emit('error', e)
+    } catch (err) {
+      return socket.emit('error', err)
     }
 
     if (1 === transformer.length) {
@@ -203,17 +184,23 @@ export default options => {
    * @api private
    */
 
-  function pruner(id) {
-    return room => {
-      delete sids[id][room]
-      if (!keys(sids[id]).length) delete sids[id]
-      delete rooms[room][id]
-      if (!keys(rooms[room]).length) {
-        delete rooms[room]
+  function prune(id, room) {
+    const srooms = socks.get(id)
+    const rsocks = rooms.get(room)
+
+    if (srooms) {
+      srooms.delete(room)
+      if (!srooms.size) socks.delete(id)
+    }
+
+    if (rsocks) {
+      rsocks.delete(id)
+      if (!rsocks.size) {
+        rooms.delete(room)
         wild.remove(room)
       }
     }
   }
 
-  return { get, add, del, client, empty, clear, transform }
+  return { get, add, del, clients, broadcast, empty }
 }
