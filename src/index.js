@@ -2,8 +2,9 @@
 
 const createWildcard = require('./wildcard')
 
-module.exports = exports = (options = {}) => {
-  const { wildcard } = options
+module.exports = exports = options => {
+  options = options || {}
+  const wildcard = options.wildcard
   const wild = createWildcard({ enabled: Boolean(wildcard) })
   const toArray = o => Array.from(o) || []
   const rooms = new Map()
@@ -110,7 +111,8 @@ module.exports = exports = (options = {}) => {
    * @api public
    */
 
-  async function broadcast(data, options = {}, clients) {
+  async function broadcast(data, options, clients) {
+    options = options || {}
     const rms = options.rooms || []
     if (rms.length === 0) {
       rms.forEach(room => {
@@ -135,7 +137,9 @@ module.exports = exports = (options = {}) => {
    */
 
   function send(ids, clients, data, options) {
-    const { except = [], method = 'write', transformer } = options
+    const except = options.except || []
+    const method = options.method || 'write'
+    const transformer = options.transformer
     ids.forEach(id => {
       const socket = clients[id]
       if (~except.indexOf(id) || !socket) return

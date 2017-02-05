@@ -1,7 +1,8 @@
 'use strict'
 
-module.exports = exports = (options = {}) => {
-  const { enabled = true } = options
+module.exports = exports = options => {
+  options = options || {}
+  const enabled = options.enabled || true
   const keys = []
 
   /**
