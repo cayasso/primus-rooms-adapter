@@ -33,7 +33,7 @@ module.exports = exports = options => {
     const srooms = socks.get(id) || new Set()
     const rsocks = rooms.get(room) || new Set()
     socks.set(id, srooms.add(room))
-    socks.set(room, rsocks.add(id))
+    rooms.set(room, rsocks.add(id))
     wild.add(room)
   }
 
@@ -78,9 +78,8 @@ module.exports = exports = options => {
    */
 
   async function empty(room) {
-    if (!rooms.get(room)) return
-    if (!Array.isArray(room)) clear(room)
-    room.forEach(clear)
+    if (Array.isArray(room)) room.forEach(clear)
+    else if (rooms.has(room)) clear(room)
   }
 
   /**
@@ -92,8 +91,12 @@ module.exports = exports = options => {
 
   function clear(room) {
     const rsocks = rooms.get(room)
-    rsocks.forEach(id => socks.get(id).clear())
-    rsocks.clear()
+    rsocks.forEach(id => {
+      const sock = socks.get(id)
+      sock.delete(room)
+      if (!sock.size) socks.delete(id)
+    })
+    rooms.delete(room);
     wild.remove(room)
   }
 
