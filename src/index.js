@@ -122,7 +122,7 @@ module.exports = exports = options => {
           send(rooms.get(key), clients, data, options))
       })
     } else {
-      send(socks.keys(), clients, data, options)
+      send(toArray(socks.keys()), clients, data, options)
     }
   }
 
