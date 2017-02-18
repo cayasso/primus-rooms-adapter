@@ -117,21 +117,23 @@ module.exports = exports = options => {
   async function broadcast(data, options, clients) {
     options = options || {}
     const rms = options.rooms || []
-    if (rms.length === 0) {
+    const sent = new Set();
+    if (rms.length !== 0) {
       rms.forEach(room => {
         const ids = rooms.get(room)
-        if (ids) send(ids, clients, data, options)
+        if (ids) send(sent, ids, clients, data, options)
         wild.match(room, key =>
-          send(rooms.get(key), clients, data, options))
+          send(sent, rooms.get(key), clients, data, options))
       })
     } else {
-      send(toArray(socks.keys()), clients, data, options)
+      send(sent, toArray(socks.keys()), clients, data, options)
     }
   }
 
   /**
    * Create sender.
    *
+   * @param {Set} sent
    * @param {Set} ids
    * @param {Object} clients
    * @param {Mixed} data
@@ -139,13 +141,14 @@ module.exports = exports = options => {
    * @api private
    */
 
-  function send(ids, clients, data, options) {
+  function send(sent, ids, clients, data, options) {
     const except = options.except || []
     const method = options.method || 'write'
     const transformer = options.transformer
     ids.forEach(id => {
       const socket = clients[id]
-      if (~except.indexOf(id) || !socket) return
+      if (!socket || ~except.indexOf(id) || sent.has(id)) return
+      sent.add(id)
       transform(socket, data, method, transformer)
     })
   }
