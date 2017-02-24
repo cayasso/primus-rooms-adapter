@@ -6,7 +6,7 @@ module.exports = exports = options => {
   options = options || {}
   const wildcard = options.wildcard
   const wild = createWildcard({ enabled: Boolean(wildcard) })
-  const toArray = o => Array.from(o) || []
+  const toArray = o => o && Array.from(o) || []
   const rooms = new Map()
   const socks = new Map()
 
