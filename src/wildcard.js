@@ -3,7 +3,7 @@
 module.exports = exports = options => {
   options = options || {}
   const enabled = options.enabled || true
-  const keys = []
+  const keys = new Set()
 
   /**
    * Match wildcard keys.
@@ -50,11 +50,8 @@ module.exports = exports = options => {
    */
 
   function add(key) {
-    if (enabled &&
-      'string' === typeof key &&
-      ~key.indexOf('*') &&
-      !~keys.indexOf(key)) {
-      keys.push(key)
+    if (enabled && 'string' === typeof key && key.includes('*')) {
+      keys.add(key)
     }
   }
 
@@ -67,11 +64,8 @@ module.exports = exports = options => {
    */
 
   function remove(key) {
-    if (enabled &&
-      'string' === typeof key &&
-      ~key.indexOf('*')) {
-      const i = keys.indexOf(key)
-      if (~i) keys.splice(i, 1)
+    if (enabled && 'string' === typeof key && ~key.includes('*')) {
+      keys.delete(key)
     }
   }
 
