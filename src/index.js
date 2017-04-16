@@ -4,19 +4,18 @@ const createWildcard = require('./wildcard')
 
 module.exports = exports = options => {
   options = options || {}
-  const wildcard = options.wildcard
-  const wild = createWildcard({ enabled: Boolean(wildcard) })
-  const toArray = o => o && Array.from(o) || []
+  const wildcard = options.wildcard ? createWildcard() : false
+  const toArray = o => (o && Array.from(o)) || []
   const rooms = new Map()
   const socks = new Map()
 
   /**
-   * Get rooms socket is subscribed to.
+   * Get rooms a socket is subscribed to or all rooms.
    *
    * @param {String} id
-   * @api public
+   * @return {Array}
+   * @public
    */
-
   async function get(id) {
     return toArray(id ? socks.get(id) : rooms.keys())
   }
@@ -26,46 +25,42 @@ module.exports = exports = options => {
    *
    * @param {String} id
    * @param {String} room
-   * @api public
+   * @public
    */
-
   async function add(id, room) {
     const srooms = socks.get(id) || new Set()
     const rsocks = rooms.get(room) || new Set()
     socks.set(id, srooms.add(room))
     rooms.set(room, rsocks.add(id))
-    wild.add(room)
+    if (wildcard) wildcard.add(room)
   }
 
   /**
    * Remove a socket from a room or from all rooms if a room is not passed.
    *
    * @param {String} id
-   * @param {String} room
-   * @api public
+   * @param {String} [room]
+   * @public
    */
-
   async function del(id, room) {
     const srooms = socks.get(id)
-    if (room) {
-      if (wildcard && ~room.indexOf('*')) {
-        const rms = id ? srooms : rooms.keys()
-        wild.find(room, toArray(rms), rm => prune(id, rm))
-      } else if (srooms && srooms.has(room)) {
-        prune(id, room)
-      }
-    } else {
-      srooms.forEach((val, rm) => prune(id, rm))
+    if (!srooms) return
+    if (!room) return srooms.forEach(rm => prune(id, rm))
+
+    if (wildcard && room.includes('*')) {
+      wildcard.find(room, srooms, rm => prune(id, rm))
+    } else if (srooms.has(room)) {
+      prune(id, room)
     }
   }
 
   /**
-   * Get client ids connected to this room.
+   * Get ids of sockets connected to a given room.
    *
    * @param {String} room
-   * @api public
+   * @return {Array}
+   * @public
    */
-
   async function clients(room) {
     return toArray(rooms.get(room))
   }
@@ -73,57 +68,55 @@ module.exports = exports = options => {
   /**
    * Remove all sockets from a room.
    *
-   * @param {String|Array} room
-   * @api public
+   * @param {(String|Array)} room
+   * @public
    */
-
   async function empty(room) {
     if (Array.isArray(room)) room.forEach(clear)
-    else if (rooms.has(room)) clear(room)
+    else clear(room)
   }
 
   /**
-   * Reset all rooms or a particular room.
+   * Clear a room.
    *
    * @param {String} room
-   * @api private
+   * @private
    */
-
   function clear(room) {
     const rsocks = rooms.get(room)
+    if (!rsocks) return;
     rsocks.forEach(id => {
-      const sock = socks.get(id)
-      sock.delete(room)
-      if (!sock.size) socks.delete(id)
+      const srooms = socks.get(id)
+      srooms.delete(room)
+      if (!srooms.size) socks.delete(id)
     })
-    rooms.delete(room);
-    wild.remove(room)
+    rooms.delete(room)
+    if (wildcard) wildcard.remove(room)
   }
 
   /**
    * Broadcast a packet.
    *
-   * Options:
-   *  - `except` {Array} socks that should be excluded
-   *  - `rooms` {Array} list of rooms to broadcast to
-   *  - `method` {String} 'write' or 'send' if primus-emitter is present
-   *
-   * @param {Object} data
-   * @param {Object} options
+   * @param {Array} data Packet to broadcast
+   * @param {Object} options Broadcast options
+   * @param {Array} options.except Socket ids to exclude
+   * @param {Array} options.rooms Rooms to broadcast to
+   * @param {String} options.method Socket method to use: 'write' or 'send'
+   * @param {Function} options.transformer Optional message transformer
    * @param {Object} clients Connected clients
-   * @api public
+   * @public
    */
-
   async function broadcast(data, options, clients) {
     options = options || {}
     const rms = options.rooms || []
-    const sent = new Set();
+    const sent = new Set()
     if (rms.length !== 0) {
       rms.forEach(room => {
         const ids = rooms.get(room)
         if (ids) send(sent, ids, clients, data, options)
-        wild.match(room, key =>
-          send(sent, rooms.get(key), clients, data, options))
+        if (wildcard) wildcard.match(room, pattern => {
+          send(sent, rooms.get(pattern), clients, data, options)
+        })
       })
     } else {
       send(sent, toArray(socks.keys()), clients, data, options)
@@ -131,16 +124,18 @@ module.exports = exports = options => {
   }
 
   /**
-   * Create sender.
+   * Send data.
    *
-   * @param {Set} sent
-   * @param {Set} ids
-   * @param {Object} clients
-   * @param {Mixed} data
-   * @param {Object} options
-   * @api private
+   * @param {Set} sent Keep track of already handled sockets
+   * @param {Set} ids Socket ids
+   * @param {Object} clients Connected clients
+   * @param {Array} data Packet to send
+   * @param {Object} options Send options
+   * @param {Array} options.except Socket ids to exclude
+   * @param {String} options.method Socket method to use: 'write' or 'send'
+   * @param {Function} options.transformer Optional message transformer
+   * @private
    */
-
   function send(sent, ids, clients, data, options) {
     const except = options.except || []
     const method = options.method || 'write'
@@ -154,15 +149,14 @@ module.exports = exports = options => {
   }
 
   /**
-   * Execute message transformation.
+   * Execute message transformer and send data.
    *
    * @param {Spark} socket
    * @param {Mixed} data
    * @param {String} method
    * @param {Function} transformer
-   * @api private
+   * @private
    */
-
   function transform(socket, data, method, transformer) {
     if ('function' !== typeof transformer) {
       return socket[method].apply(socket, data)
@@ -188,27 +182,23 @@ module.exports = exports = options => {
   }
 
   /**
-   * Create pruner.
+   * Remove a socket from a room.
    *
    * @param {String} id
-   * @api private
+   * @param {String} room
+   * @private
    */
-
   function prune(id, room) {
     const srooms = socks.get(id)
     const rsocks = rooms.get(room)
 
-    if (srooms) {
-      srooms.delete(room)
-      if (!srooms.size) socks.delete(id)
-    }
+    srooms.delete(room)
+    if (!srooms.size) socks.delete(id)
 
-    if (rsocks) {
-      rsocks.delete(id)
-      if (!rsocks.size) {
-        rooms.delete(room)
-        wild.remove(room)
-      }
+    rsocks.delete(id)
+    if (!rsocks.size) {
+      rooms.delete(room)
+      if (wildcard) wildcard.remove(room)
     }
   }
 

@@ -1,71 +1,58 @@
 'use strict'
 
-module.exports = exports = options => {
-  options = options || {}
-  const enabled = options.enabled || true
-  const keys = new Set()
+module.exports = exports = () => {
+  const patterns = new Set()
 
   /**
-   * Match wildcard keys.
+   * Find all patterns matching a given room.
    *
    * @param {String} room
    * @param {Function} fn
-   * @api public
+   * @public
    */
-
   function match(room, fn) {
-    if (!enabled) return
-    keys.forEach(key => {
-      if (regex(key).test(room)) fn(key)
+    patterns.forEach(pattern => {
+      if (regex(pattern).test(room)) fn(pattern)
     })
   }
 
   /**
-   * Find keys matching wildcard.
+   * Find all rooms matching a given pattern.
    *
-   * @param {String} room
-   * @param {Array} [list]
-   * @param {Function} [fn]
-   * @api public
+   * @param {String} pattern
+   * @param {Array} rooms
+   * @param {Function} fn
+   * @public
    */
-
-  function find(re, list, fn) {
-    if ('function' === typeof list) {
-      fn = list
-      list = null
-    }
-    if (!enabled) return fn(re)
-    list = list || keys
-    list.forEach(key => {
-      if (regex(re).test(key)) fn(key)
+  function find(pattern, rooms, fn) {
+    rooms.forEach(room => {
+      if (regex(pattern).test(room)) fn(room)
     })
   }
 
   /**
-   * Add key to wildcard list.
+   * Add a pattern to patterns set.
    *
-   * @param {String} key
-   * @return {Boolean}
-   * @api private
+   * @param {String} pattern
+   * @return {(Set|undefined)}
+   * @public
    */
-
-  function add(key) {
-    if (enabled && 'string' === typeof key && key.includes('*')) {
-      keys.add(key)
+  function add(pattern) {
+    if ('string' === typeof pattern && pattern.includes('*')) {
+      patterns.add(pattern)
     }
   }
 
   /**
-   * Remove key from wildcard list.
+   * Remove a pattern from patterns set.
    *
-   * @param {String} key
-   * @return {Boolean}
-   * @api private
+   * @param {String} pattern
+   * @return {(Boolean|undefined)}
+   * @public
    */
-
-  function remove(key) {
-    if (enabled && 'string' === typeof key && ~key.includes('*')) {
-      keys.delete(key)
+  function remove(pattern) {
+    if ('string' === typeof pattern && ~pattern.includes('*')) {
+      patterns.delete(pattern)
     }
   }
 
@@ -74,9 +61,8 @@ module.exports = exports = options => {
    *
    * @param {String} pattern
    * @param {RegEx}
-   * @api private
+   * @private
    */
-
   function regex(pattern) {
     pattern = pattern.replace(/[*]/g, '(.*?)')
     return new RegExp(`^${pattern}$`)
